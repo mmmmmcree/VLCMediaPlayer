@@ -2,7 +2,6 @@
 #ifndef STREAMER_H
 #define STREAMER_H
 
-#include <QWidget>
 #include <QPainter>
 #include <QTimer>
 
@@ -37,7 +36,7 @@ Streamer<T>::Streamer(QWidget *parent) : T(parent)
 {
     _timer = new QTimer(this);
     _timer->setInterval(20);
-    T::connect(_timer, QTimer::timeout, this, updateGradientShift);
+    T::connect(_timer, &QTimer::timeout, this, &Streamer<T>::updateGradientShift);
     _timer->start();
 }
 

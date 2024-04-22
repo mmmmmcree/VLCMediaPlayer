@@ -11,16 +11,17 @@ LineEdit::LineEdit(QWidget *parent) : QLineEdit(parent)
     QPalette palette = this->palette();
     palette.setColor(QPalette::Text, border_color);
     this->setPalette(palette);
+    this->setFocusPolicy(Qt::NoFocus);
 }
 
 void LineEdit::paintEvent(QPaintEvent *event)
 {
-        QPainter painter(this);
-        painter.setRenderHint(QPainter::Antialiasing);
-        painter.setPen(QPen(border_color, border_width));
-        painter.setBrush(QBrush(background_color));
-        painter.drawRoundedRect(this->rect().adjusted(border_width, border_width, -border_width, -border_width), this->height() / 2, this->height() / 2);
-        QLineEdit::paintEvent(event);
+    QPainter painter(this);
+    painter.setRenderHint(QPainter::Antialiasing);
+    painter.setPen(QPen(border_color, border_width));
+    painter.setBrush(QBrush(background_color));
+    painter.drawRoundedRect(this->rect().adjusted(border_width, border_width, -border_width, -border_width), this->height() / 2, this->height() / 2);
+    QLineEdit::paintEvent(event);
 }
 
 void LineEdit::resizeEvent(QResizeEvent *event)

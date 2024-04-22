@@ -22,7 +22,7 @@ public:
     void setShape(Shape shape);
     void setFillType(FillType fill_type);
     void addShadow(int right, int down, qreal blur_radius, const QColor &shadow_color);
-    void setFillSpeed(int fill_speed);
+    void setFillSpeed(int fill_speed = 1);
     void setFillBrush(const QBrush &brush);
 private slots:
     void radiusIncrease();
@@ -117,7 +117,7 @@ void HoverFill<T>::enterEvent(QEnterEvent *event)
 {
     T::enterEvent(event);
     _timer->disconnect();
-    T::connect(_timer, QTimer::timeout, this, radiusIncrease);
+    T::connect(_timer, &QTimer::timeout, this, &HoverFill<T>::radiusIncrease);
     _cursor_pos = event->position();
     _timer->start();
 }
@@ -127,7 +127,7 @@ void HoverFill<T>::leaveEvent(QEvent *event)
 {
     T::leaveEvent(event);
     _timer->disconnect();
-    T::connect(_timer, QTimer::timeout, this, radiusDecrease);
+    T::connect(_timer, &QTimer::timeout, this, &HoverFill<T>::radiusDecrease);
     _cursor_pos = this->mapFromGlobal(QCursor::pos());
     _timer->start();
 }

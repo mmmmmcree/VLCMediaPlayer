@@ -15,7 +15,7 @@ void event_filter(const libvlc_event_t *event, void *user_data) {
             emit lmp->durationChanged(duration);
 
             libvlc_media_track_t **tracks;
-            unsigned count = libvlc_media_tracks_get(lmp->media(), &tracks);
+            int count = libvlc_media_tracks_get(lmp->media(), &tracks);
             for (int i = 0; i < count; ++i) {
                 if (tracks[i]->i_type == libvlc_track_video) {
                     emit lmp->mediaTypeChanged(LMediaPlayer::Video);

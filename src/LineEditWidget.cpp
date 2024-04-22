@@ -6,9 +6,8 @@
 
 LineEditWidget::LineEditWidget(QWidget *parent) : QWidget(parent)
 {
-
-
     edit = new LineEdit(this);
+    edit->setMouseTracking(false);
     edit->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
     tip = new QLabel(this);
     tip->setAlignment(Qt::AlignCenter);
@@ -84,6 +83,7 @@ void LineEditWidget::enterEvent(QEnterEvent *event)
     edit_animation->setDirection(QAbstractAnimation::Forward);
     tip->hide();
     edit_animation->start();
+    edit->setFocus();
     QTimer::singleShot(animation_duration, [this]() { if (hovering) { button->show();} });
 }
 
@@ -97,6 +97,7 @@ void LineEditWidget::leaveEvent(QEvent *event)
     tip_animation->setDirection(QAbstractAnimation::Backward);
     edit_animation->start();
     tip_animation->start();
+    edit->clearFocus();
     QTimer::singleShot(animation_duration, [this]() { button->hide(); });
 }
 

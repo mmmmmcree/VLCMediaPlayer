@@ -9,9 +9,7 @@ DialogSlider::DialogSlider(QWidget *parent) : QDialog(parent)
 {
     auto *layout = new QVBoxLayout(this);
     _slider = new Slider(Qt::Vertical, this);
-    // layout->addSpacerItem(new QSpacerItem(40, 20));
     layout->addWidget(_slider);
-    // layout->addSpacerItem(new QSpacerItem(40, 20));
     this->setLayout(layout);
     this->setWindowFlags(Qt::FramelessWindowHint | Qt::ToolTip);
     this->setAttribute(Qt::WA_TranslucentBackground);

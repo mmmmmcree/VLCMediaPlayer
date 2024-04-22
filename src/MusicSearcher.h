@@ -4,28 +4,16 @@
 #include <QObject>
 #include <QNetworkAccessManager>
 #include <QNetworkRequest>
-#include <QAbstractItemModel>
-#include <QStandardItemModel>
+#include "MediaSearcher.h"
 
 struct MusicInfo;
 
-class MusicSearcher : public QObject
-{
-    Q_OBJECT
-public:
-    virtual ~MusicSearcher() = default;
-    virtual void searchMusic(const QString &keyword) = 0;
-    QStandardItemModel *model() const { return _model; }
-protected:
-    QStandardItemModel *_model;
-};
-
-class NetEaseMusicSearcher : public MusicSearcher
+class NetEaseMusicSearcher : public MediaSearcher
 {
     Q_OBJECT
 public:
     NetEaseMusicSearcher(QObject *parent = nullptr);
-    void searchMusic(const QString &keyword) override;
+    void search(const QString &keyword) override;
 private:
     void searchMusicUrl(int id);
 private slots:
@@ -37,6 +25,20 @@ private:
     QHash<QNetworkReply*, int> reply_id_map;
     QHash<int, MusicInfo> id_info_map;
     static constexpr auto  api_url = "https://dataiqs.com/api/netease/music/";
+};
+
+class KugouMusicSearcher : public MediaSearcher
+{
+    Q_OBJECT
+public:
+    KugouMusicSearcher(QObject *parent = nullptr);
+    void search(const QString &keyword) override;
+private slots:
+    void onGetMusicUrlFinished(QNetworkReply *reply);
+private:
+    QNetworkAccessManager *manager;
+    QNetworkRequest request;
+    static constexpr auto  api_url = "https://dataiqs.com/api/kgmusic/";
 };
 
 struct MusicInfo

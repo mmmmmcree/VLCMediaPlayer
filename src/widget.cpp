@@ -1,13 +1,11 @@
 #include "widget.h"
 #include "./ui_widget.h"
 #include "Constants.h"
-#include "TemplateView.h"
 #include <QRandomGenerator>
 #include <QTimer>
 #include <QFile>
 #include <QFileDialog>
 #include <QMessageBox>
-
 
 Widget::Widget(QWidget *parent) : QWidget(parent), ui(new Ui::Widget)
 {
@@ -17,47 +15,61 @@ Widget::Widget(QWidget *parent) : QWidget(parent), ui(new Ui::Widget)
     media_player->set_hwnd(ui->videoWidget->winId());
 
     timer = new QTimer(this);
-    timer->setInterval(2500);
+    timer->setInterval(3000);
     timer->start();
 
     netease_music_searcher = new NetEaseMusicSearcher(this);
+    kugou_music_searcher = new KugouMusicSearcher(this);
+    libvio_searcher = new LibvioSearcher(this);
 
     playlist_database = new PlaylistDatabase(this);
+    file_downloader = new FileDownloader(this);
 
     ui->playlistView->setModel(playlist_database->model());
     ui->searchlistView->setModel(netease_music_searcher->model());
+    ui->TVlistView->setModel(libvio_searcher->model());
 
     for (auto child : this->findChildren<QWidget*>()) {
         child->installEventFilter(this);
     }
 
-    connect(timer, QTimer::timeout, this, hide_controls);
-    connect(ui->aspectEdit->lineEdit(), QLineEdit::textChanged, this, set_aspect_ratio);
-    connect(ui->aspectEdit->pushButton(), QPushButton::clicked, this, [p = ui->aspectEdit->lineEdit()](){ p->setText("00:00"); });
-    connect(ui->playBtn, QPushButton::clicked, this, do_playBtn_clicked);
-    connect(ui->popSlider, QPushButton::clicked, this, [p = ui->popSlider](){ p->slider()->setValue(0); });
+    connect(timer, &QTimer::timeout, this, &Widget::hide_controls);
+    connect(ui->aspectEdit->lineEdit(), &QLineEdit::textChanged, this, &Widget::set_aspect_ratio);
+    connect(ui->aspectEdit->pushButton(), &QPushButton::clicked, this, [p = ui->aspectEdit->lineEdit()](){ p->setText("00:00"); });
+    connect(ui->urlEdit->pushButton(), &QPushButton::clicked, this, [this]() { play(ui->urlEdit->lineEdit()->text()); });
+    connect(ui->playBtn, &QPushButton::clicked, this, &Widget::do_playBtn_clicked);
+    connect(ui->popSlider, &QPushButton::clicked, this, &Widget::do_popSlider_clicked);
+    connect(ui->nextBtn, &QPushButton::clicked, this, [this](){ play_current_list(1); });
+    connect(ui->preBtn, &QPushButton::clicked, this, [this](){ play_current_list(-1); });
 
-    connect(ui->nextBtn, QPushButton::clicked, this, [p = ui->playlistWidget](){ p->selectNextItem(); });
-    connect(ui->preBtn, QPushButton::clicked, this, [p = ui->playlistWidget](){ p->selectPreviousItem(); });
+    connect(ui->orderBtn, &QPushButton::clicked, this, &Widget::do_orderBtn_clicked);
+    connect(ui->fullscreenBtn, &QPushButton::clicked, this, &Widget::do_fullscreenBtn_clicked);
 
-    connect(ui->orderBtn, QPushButton::clicked, this, do_orderBtn_clicked);
-    connect(ui->fullscreenBtn, QPushButton::clicked, this, do_fullscreenBtn_clicked);
+    connect(ui->playlistWidget, &DataDisplayWidget::addItem, this, &Widget::do_addPlaylistItem);
+    connect(ui->playlistWidget, &DataDisplayWidget::deleteItem, this, [p = playlist_database->model()]() { p->select(); });
+    connect(ui->playlistView, &QAbstractItemView::doubleClicked, this, &Widget::play_playlist);
+    connect(ui->searchlistWidget->onClickedMenu()->addAction("download"), &QAction::triggered, this, &Widget::searchlist_downloadAction_triggered);
+    connect(ui->searchlistView, &QAbstractItemView::doubleClicked, this, &Widget::play_searchlist);
+    connect(ui->TVlistView, &QTreeView::doubleClicked, libvio_searcher, &LibvioSearcher::processModelIndex);
+    connect(ui->TVlistView->model(), &QAbstractItemModel::rowsInserted, ui->TVlistView, &QTreeView::expand);
 
-    connect(ui->playlistWidget, DataDisplayWidget::addItem, this, do_addPlaylistItem);
-    connect(ui->playlistWidget, DataDisplayWidget::deleteItem, this, [p = playlist_database->model()]() { p->select(); });
-    connect(ui->playlistView, QAbstractItemView::doubleClicked, this, do_playlistView_doubleClicked);
-    connect(ui->searchlistView, QAbstractItemView::doubleClicked, this, do_searchlistView_doubleClicked);
+    connect(libvio_searcher, &LibvioSearcher::mediaUrlReady, this, [this](const QString &url) { play(url); });
 
-
-    connect(ui->seekSlider, QSlider::valueChanged, this, do_seekSlider_valueChanged);
-    connect(ui->seekSlider, QSlider::sliderReleased, this, do_seekSliderReleased);
-    connect(ui->popSlider->slider(), QSlider::valueChanged, this, do_volumeSlider_valueChanged);
-    connect(media_player, LMediaPlayer::positionChanged, this, do_mediaPlayer_positionChanged);
-    connect(media_player, LMediaPlayer::playbackStateChanged, this, do_playbackStateChanged);
-    connect(media_player, LMediaPlayer::mediaTypeChanged, this, do_mediatypeChanged);
-    connect(media_player, LMediaPlayer::durationChanged, this, do_durationChanged);
-    connect(ui->searchEdit->pushButton(), QPushButton::clicked, this, do_searchBtn_clicked);
-
+    connect(ui->seekSlider, &QSlider::valueChanged, this, &Widget::do_seekSlider_valueChanged);
+    connect(ui->seekSlider, &QSlider::sliderReleased, this, &Widget::do_seekSliderReleased);
+    connect(ui->popSlider->slider(), &QSlider::valueChanged, this, &Widget::do_volumeSlider_valueChanged);
+    connect(media_player, &LMediaPlayer::positionChanged, this, &Widget::do_mediaPlayer_positionChanged);
+    connect(media_player, &LMediaPlayer::playbackStateChanged, this, &Widget::do_playbackStateChanged);
+    connect(media_player, &LMediaPlayer::mediaTypeChanged, this, &Widget::do_mediatypeChanged);
+    connect(media_player, &LMediaPlayer::durationChanged, this, &Widget::do_durationChanged);
+    connect(ui->searchEdit->pushButton(), &QPushButton::clicked, this, &Widget::do_searchBtn_clicked);
+    connect(file_downloader, &FileDownloader::downloadFinished, this, [p = playlist_database](const QString &file_path) {
+        p->insertData(QFileInfo(file_path).completeBaseName(), QDir::toNativeSeparators(file_path));
+    });
+    connect(ui->TVsearchEdit->pushButton(), &QPushButton::clicked, libvio_searcher, [this]() {
+        static_cast<QStandardItemModel*>(ui->TVlistView->model())->clear();
+        libvio_searcher->search(ui->TVsearchEdit->lineEdit()->text());
+    });
 
     init_ui();
 }
@@ -72,60 +84,107 @@ void Widget::init_ui()
     this->setWindowTitle(MainWindow::title);
     this->setMouseTracking(true);
     ui->videoWidget->setMouseTracking(true);
+    QPixmap pixmap(MainWindow::background_image);
+    ui->videoWidget->setPixmap(pixmap);
+    ui->videoWidget->setScaledContents(true);
     this->layout()->setContentsMargins(0, 0, 0, 0);
     this->layout()->setSpacing(0);
+
     ui->playlistWidget->setStreamerOrientation(Qt::Vertical);
     ui->playlistWidget->setStreamerSpeed(5);
     ui->searchlistWidget->setStreamerOrientation(Qt::Vertical);
     ui->searchlistWidget->setStreamerSpeed(5);
+    ui->TVlistWidget->setStreamerOrientation(Qt::Vertical);
+    ui->TVlistWidget->setStreamerSpeed(5);
 
+    ui->splitter->setHandleWidth(0);
     ui->playlistView->setColumnHidden(Sql::url, true);
     ui->playlistWidget->setView(ui->playlistView);
     ui->playlistView->setHeaderHidden(true);
     ui->searchlistWidget->setView(ui->searchlistView);
-    
+    ui->searchlistView->setAutoScroll(true);
+    ui->TVlistWidget->setView(ui->TVlistView);
+    ui->TVlistView->setHeaderHidden(true);
+
+    QPushButton *downloadBtn = new HoverFill<QPushButton>(ui->searchlistWidget);
+    downloadBtn->setFlat(true);
+    downloadBtn->setIcon(QIcon(IconPath::download));
+    ui->searchlistWidget->topLayout()->addWidget(downloadBtn);
+    connect(downloadBtn, &QPushButton::clicked, this, &Widget::searchlist_downloadAction_triggered);
+   
     HoverFillPushButton *add_btn = new HoverFillPushButton(ui->playlistWidget);
     HoverFillPushButton *delete_btn= new HoverFillPushButton(ui->playlistWidget);
     add_btn->setIcon(QIcon(IconPath::add));
     delete_btn->setIcon(QIcon(IconPath::minus));
 
+    ui->tabWidget->setShowType(ShowType::RightToLeft);
+    ui->topBar->setShowType(ShowType::TopToBottom);
+
     ui->playlistWidget->topLayout()->addSpacerItem(new QSpacerItem(0, 0, QSizePolicy::Expanding));
     ui->playlistWidget->topLayout()->addWidget(add_btn);
     ui->playlistWidget->topLayout()->addWidget(delete_btn);
-    ui->playlistWidget->connect(add_btn, QPushButton::clicked, ui->playlistWidget, DataDisplayWidget::addItem);
-    ui->playlistWidget->connect(delete_btn, QPushButton::clicked, ui->playlistWidget, DataDisplayWidget::deleteAction_triggered);
+    ui->playlistWidget->connect(add_btn, &QPushButton::clicked, ui->playlistWidget, &DataDisplayWidget::addItem);
+    ui->playlistWidget->connect(delete_btn, &QPushButton::clicked, ui->playlistWidget, &DataDisplayWidget::deleteAction_triggered);
+
+    ui->urlEdit->setFixedHeight(40);
+    ui->urlEdit->pushButton()->setIcon(QIcon(IconPath::play));
+    ui->urlEdit->tipLabel()->setText("url");
+    ui->urlEdit->setTipLabelColor(QColor("#707070"));
 
     ui->searchEdit->setFixedHeight(40);
     ui->searchEdit->pushButton()->setIcon(QIcon(IconPath::search));
+    ui->searchEdit->tipLabel()->setText("search");
+    ui->searchEdit->setTipLabelColor(QColor("#707070"));
     ui->searchlistWidget->topLayout()->addWidget(ui->searchEdit);
+
+    ui->TVsearchEdit->setFixedHeight(40);
+    ui->TVsearchEdit->pushButton()->setIcon(QIcon(IconPath::search));
+    ui->TVsearchEdit->tipLabel()->setText("search TV");
+    ui->TVsearchEdit->setTipLabelColor(QColor("#707070"));
+    ui->TVlistWidget->topLayout()->addWidget(ui->TVsearchEdit);
     
     ui->popSlider->slider()->setValue(50);
+    ui->popSlider->setProperty("mute", false);
+    
     ui->aspectEdit->tipLabel()->setText("aspect ratio");
     ui->aspectEdit->lineEdit()->setInputMask("99:99;_");
     ui->aspectEdit->lineEdit()->setAlignment(Qt::AlignCenter);
     ui->aspectEdit->lineEdit()->setText("00:00");
     ui->aspectEdit->pushButton()->setIcon(QIcon(IconPath::flash));
     ui->aspectEdit->setTipLabelColor(QColor("#707070"));
+
     ui->tabWidget->setCurrentWidget(ui->playlistTab);
+}
+
+bool splitter_handle_under_mouse(QSplitter *splitter)
+{
+    for (int i = 0, n = splitter->count(); i < n; ++i) {
+        if (splitter->handle(i)->underMouse()) { return true; }
+    }
+    return false;
 }
 
 void Widget::hide_controls()
 {
     if (not ui->popSlider->dialog_visible() and not ui->aspectEdit->lineEdit()->hasFocus()) { ui->bottomBar->hide(); }
-    if (not ui->searchEdit->lineEdit()->hasFocus() and
-        not ui->searchlistWidget->isVisible() and
-        not ui->playlistView->isVisible())
-    { ui->tabWidget->hide(); }
-    if (ui->bottomBar->isHidden() and ui->playlistWidget->isHidden()) {
+    if (not ui->urlEdit->lineEdit()->hasFocus()) { ui->topBar->hide(); }
+    if (not ui->searchEdit->lineEdit()->hasFocus() and not splitter_handle_under_mouse(ui->splitter)
+        and not ui->playlistWidget->menuVisible() and not ui->searchlistWidget->menuVisible()
+    ) {  ui->tabWidget->hide(); }
+    if (ui->bottomBar->isHidden() and ui->tabWidget->isHidden()) {
         this->setCursor(Qt::BlankCursor);
     }
 }
 
 void Widget::show_controls()
 {
+    timer->stop();
+    ui->topBar->show();
     ui->bottomBar->show();
     ui->tabWidget->show();
-    this->setCursor(Qt::ArrowCursor);
+    ui->playlistWidget->show();
+    ui->searchlistWidget->show();
+    this->setCursor(Qt::CustomCursor);
     timer->start();
 }
 
@@ -152,9 +211,43 @@ void Widget::set_aspect_ratio(const QString &ratio)
     }
 }
 
+void Widget::play_playlist(const QModelIndex &index)
+{
+    if (not index.isValid()) { return; }
+    QModelIndex url_index = playlist_database->model()->index(index.row(), Sql::url);
+    QString url = playlist_database->model()->data(url_index).toString();
+    play(url);
+}
+
+void Widget::play_searchlist(const QModelIndex &index)
+{
+    if (not index.isValid()) { return; }
+    auto item = netease_music_searcher->item(index);
+    QString url = item->data(Qt::UserRole).toString(), name = item->text();
+    play(url);
+}
+
+DataDisplayWidget *Widget::current_list_widget() const
+{
+    int list_index = ui->tabWidget->currentIndex();
+    auto list_tab = ui->tabWidget->widget(list_index);
+    return list_tab->findChild<DataDisplayWidget*>();
+}
+
+void Widget::play_current_list(int step)
+{
+    auto list_widget = current_list_widget();
+    QModelIndex play_index = list_widget->selectNextModelIndex(step);
+    if (list_widget == ui->playlistWidget) {
+        play_playlist(play_index);
+    } else if (list_widget == ui->searchlistWidget) {
+        play_searchlist(play_index);
+    }
+}
+
 void Widget::mouseMoveEvent(QMouseEvent *event)
 {
-    show_controls();
+    this->setCursor(Qt::ArrowCursor);
 }
 
 bool Widget::eventFilter(QObject *obj, QEvent *event)
@@ -167,12 +260,18 @@ bool Widget::eventFilter(QObject *obj, QEvent *event)
             if (obj == ui->aspectEdit or
                 obj == ui->aspectEdit->lineEdit() or
                 obj == ui->searchEdit or
-                obj == ui->searchEdit->lineEdit()) { break; }
+                obj == ui->searchEdit->lineEdit() or
+                obj == ui->urlEdit or
+                obj == ui->urlEdit->lineEdit() or
+                obj == ui->TVsearchEdit or
+                obj == ui->TVsearchEdit->lineEdit()
+                ) { break; }
             this->keyPressEvent(static_cast<QKeyEvent*>(event));
             return true;
         } break;
     }
-    return obj->eventFilter(obj, event);
+    if (obj != this) { return obj->eventFilter(obj, event); }
+    return QWidget::eventFilter(obj, event);
 }
 
 void Widget::resizeEvent(QResizeEvent *event)
@@ -202,6 +301,13 @@ void Widget::keyPressEvent(QKeyEvent * event)
         case Qt::Key_Up: { ui->popSlider->slider()->setValue(ui->popSlider->slider()->value() + 5); } break;
         case Qt::Key_Down: { ui->popSlider->slider()->setValue(ui->popSlider->slider()->value() - 5); } break;
     }
+}
+
+void Widget::wheelEvent(QWheelEvent *event)
+{
+    // event->angleDelta().y();
+    ui->popSlider->slider()->setValue(ui->popSlider->slider()->value() + event->angleDelta().y() / 120);
+    QWidget::wheelEvent(event);
 }
 
 void Widget::do_playBtn_clicked()
@@ -245,10 +351,24 @@ void Widget::do_fullscreenBtn_clicked()
     }
 }
 
+void Widget::do_popSlider_clicked()
+{
+    if (ui->popSlider->property("mute").toBool()) {
+        ui->popSlider->setProperty("mute", false);
+        ui->popSlider->setIcon(QIcon(IconPath::volume));
+        media_player->set_volume(ui->popSlider->slider()->value());
+    } else {
+        ui->popSlider->setProperty("mute", true);
+        ui->popSlider->setIcon(QIcon(IconPath::mute));
+        media_player->set_volume(0);
+    }
+}
+
 void Widget::do_searchBtn_clicked()
 {
-    ui->searchlistView->model()->removeRows(0, ui->searchlistView->model()->rowCount());
-    netease_music_searcher->searchMusic(ui->searchEdit->lineEdit()->text());
+    static_cast<QStandardItemModel*>(ui->searchlistView->model())->clear();
+    netease_music_searcher->search(ui->searchEdit->lineEdit()->text());
+    kugou_music_searcher->search(ui->searchEdit->lineEdit()->text());
 }
 
 void Widget::do_addPlaylistItem()
@@ -257,21 +377,8 @@ void Widget::do_addPlaylistItem()
     for (const auto &file_path : file_paths) {
         QFileInfo file_info(file_path);
         if (not file_info.exists()) { continue; }
-        playlist_database->insertData(file_info.fileName(), QDir::toNativeSeparators(file_path));
+        playlist_database->insertData(file_info.completeBaseName(), QDir::toNativeSeparators(file_path));
     }
-}
-
-void Widget::do_playlistView_doubleClicked(const QModelIndex &index)
-{
-    QModelIndex url_index = playlist_database->model()->index(index.row(), Sql::url);
-    auto url = playlist_database->model()->data(url_index).toString();
-    play(url);
-}
-
-void Widget::do_searchlistView_doubleClicked(const QModelIndex &index)
-{
-    auto url =netease_music_searcher->model()->data(index, Qt::UserRole).toString();
-    play(url);
 }
 
 void Widget::do_durationChanged(int duration)
@@ -315,20 +422,22 @@ void Widget::do_playbackStateChanged(LMediaPlayer::PlaybackState state)
         } break;
         case LMediaPlayer::EndedState: {
             ui->playBtn->setIcon(QIcon(IconPath::stop));
-            int row_count = playlist_database->model()->rowCount();
+
+            auto list_widget = current_list_widget();
+            int row_count = list_widget->rowCount();
             switch(media_player->playback_order()) {
                 case LMediaPlayer::SequentialOrder: {
-                    if (ui->playlistView->currentIndex().row() != row_count - 1)
-                    { ui->playlistWidget->selectNextItem(); }
+                    if (list_widget->currentRow() != row_count - 1)
+                    { play_current_list(1); }
                 } break;
                 case LMediaPlayer::SingleLoopOrder: {
-                    ui->playlistWidget->selectNextItem(0);
+                    play_current_list(0);
                 } break;
                 case LMediaPlayer::LoopingOrder: {
-                    ui->playlistWidget->selectNextItem();
+                    play_current_list(1);
                 } break;
                 case LMediaPlayer::RandomOrder: {
-                    ui->playlistWidget->selectNextItem(QRandomGenerator::global()->bounded(0, row_count - 1));
+                    play_current_list(QRandomGenerator::global()->bounded(0, row_count - 1));
                 } break;
             }
         } break;
@@ -355,4 +464,13 @@ void Widget::do_volumeSlider_valueChanged(int value)
     } else {
         ui->popSlider->setIcon(QIcon(IconPath::volume));
     }
+}
+
+void Widget::searchlist_downloadAction_triggered()
+{
+    auto index = ui->searchlistView->currentIndex();
+    if (not index.isValid()) { return; }
+    auto item = netease_music_searcher->item(index);
+    QString url = item->data(Qt::UserRole).toString(), name = item->text();
+    file_downloader->download(url, name);
 }

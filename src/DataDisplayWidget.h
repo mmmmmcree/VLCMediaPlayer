@@ -13,9 +13,13 @@ class DataDisplayWidget : public QWidget
 public:
     DataDisplayWidget(QWidget *parent = nullptr);
     void setView(QAbstractItemView *item_view);
+    QAbstractItemView *view() const;
     QHBoxLayout *topLayout() const;
-    void selectNextItem(int step = 1);
-    void selectPreviousItem();
+    QMenu *onClickedMenu() const;
+    bool menuVisible() const;
+    QModelIndex selectNextModelIndex(int step = 1) const;
+    int rowCount() const;
+    int currentRow() const;
 signals:
     void addItem();
     void deleteItem();
@@ -25,8 +29,8 @@ public slots:
 protected:
     void contextMenuEvent(QContextMenuEvent *event) override;
 private:
-    QAbstractItemView *view;
-    QMenu *menu, *on_clicked_menu;
+    QAbstractItemView *_view;
+    QMenu *_menu, *on_clicked_menu;
     QHBoxLayout *top_layout;
     QVBoxLayout *layout;
 };

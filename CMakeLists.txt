@@ -1,11 +1,12 @@
 cmake_minimum_required(VERSION 3.5) # 指定CMake的最小版本为3.5
 project(vlc LANGUAGES CXX) # 定义项目名称和使用的编程语言
-
+ 
 # 设置C++标准
-set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
-set(CMAKE_PREFIX_PATH "E:/Qt/6.5.1/mingw_64")
+# set(CMAKE_PREFIX_PATH "E:/Qt/6.6.3/mingw_64")
+set(CMAKE_PREFIX_PATH "E:/Qt/6.6.3/msvc2019_64")
 
 # 开启Qt的自动处理功能
 set(CMAKE_AUTOUIC ON)
@@ -13,7 +14,7 @@ set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
 
 # 查找Qt6中的Widgets模块
-find_package(Qt6 COMPONENTS Widgets Network Sql REQUIRED)
+find_package(Qt6 COMPONENTS Widgets Network Sql WebEngineWidgets REQUIRED)
 
 # 包含VLC SDK的头文件目录
 include_directories(./vlc-3.0.20/sdk/include)
@@ -40,7 +41,7 @@ add_executable(${PROJECT_NAME}
     res/res.qrc
 )
 # 链接Qt Widgets和VLC库
-target_link_libraries(${PROJECT_NAME} PRIVATE Qt6::Widgets Qt6::Network Qt6::Sql ${LIBVLC_LIBRARY} ${LIBVLCCORE_LIBRARY})
+target_link_libraries(${PROJECT_NAME} PRIVATE Qt6::Widgets Qt6::Network Qt6::Sql Qt6::WebEngineWidgets ${LIBVLC_LIBRARY} ${LIBVLCCORE_LIBRARY})
 
 add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different

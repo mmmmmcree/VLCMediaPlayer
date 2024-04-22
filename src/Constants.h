@@ -12,6 +12,7 @@ namespace vlc {
 
 struct MainWindow {
     static constexpr auto title = "Mango Player";
+    static constexpr auto background_image = ":/imgs/background.png";
 };
 
 struct Sql {
@@ -23,6 +24,23 @@ struct Sql {
         name,
         url
     };
+};
+
+struct JavaScript
+{
+    static constexpr auto get_search_results = R"(
+        var items = document.getElementsByClassName('stui-vodlist__thumb lazyload');
+        var results = [];
+        for (var i = 0; i < items.length; i++) { results.push({href: items[i].href, title: items[i].title}); }
+        results;
+    )";
+    static constexpr auto get_episode_links = R"(
+        var items = document.querySelector("body > div:nth-child(3) > div.row > div > div > div > div:nth-child(2) > ul").querySelectorAll("li");
+        var results = [];
+        for (var i = 0; i < items.length; i++) { results.push(items[i].querySelector('a').href); }
+        results;
+    )";
+    static constexpr auto get_media_url = R"(document.querySelector('#playleft > iframe').contentWindow.document.querySelector('video').src)";
 };
 
 struct SqlError {
@@ -45,6 +63,7 @@ struct IconPath {
     static constexpr auto mute = ":/imgs/mute.svg";
     static constexpr auto flash = ":/imgs/flash.svg";
     static constexpr auto search = ":/imgs/search.svg";
+    static constexpr auto download = ":/imgs/download.svg";
 };
 
 struct StyleSheet {
@@ -63,7 +82,7 @@ struct Network {
 };
 
 struct Filter {
-    static constexpr auto media_filter = "Media files (*.flac *.mp3 *.wav *.ogg *.mp4 *.avi *.mkv)";
+    static constexpr auto media_filter = "Media files (*.aac,*.flac *.mp3 *.wav *.ogg *.mp4 *.avi *.mkv *.mov, *.flv)";
 };
 
 struct Dialog {

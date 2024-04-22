@@ -1,6 +1,11 @@
 #ifndef LMEDIAPLAYER_H
 #define LMEDIAPLAYER_H
 
+#ifdef _WIN32
+#include <basetsd.h>
+typedef SSIZE_T ssize_t;
+#endif // for MSVC
+
 #include "vlc/vlc.h"
 #include <QObject>
 #include <QString>
@@ -47,6 +52,7 @@ public:
     void set_position(float position);
     void set_volume(int volume);
     void set_aspect_ratio(int width, int height);
+    void set_aspect_ratio(const QString &ratio);
     void set_playback_order_next();
     PlaybackOrder playback_order() const;
     libvlc_media_t *media() const;
