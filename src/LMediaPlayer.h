@@ -54,6 +54,7 @@ public:
     void set_aspect_ratio(int width, int height);
     void set_aspect_ratio(const QString &ratio);
     void set_playback_order_next();
+    bool set_rate(float rate);
     PlaybackOrder playback_order() const;
     libvlc_media_t *media() const;
     libvlc_media_player_t *player() const;

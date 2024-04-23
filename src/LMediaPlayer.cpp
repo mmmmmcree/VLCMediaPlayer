@@ -162,3 +162,8 @@ LMediaPlayer::PlaybackState LMediaPlayer::playback_state() const
 {
     return static_cast<PlaybackState>(libvlc_media_player_get_state(_player));
 }
+
+bool LMediaPlayer::set_rate(float rate)
+{
+    return libvlc_media_player_set_rate(_player, rate) == 0;
+}

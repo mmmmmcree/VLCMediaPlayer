@@ -7,7 +7,22 @@
 #include <QJsonArray>
 #include <QUrlQuery>
 
-NetEaseMusicSearcher::NetEaseMusicSearcher(QObject *parent) : MediaSearcher(parent)
+MusicSearcher::MusicSearcher(QObject *parent) : QObject(parent)
+{
+    if (not _model) { _model = std::make_unique<QStandardItemModel>(); }
+}
+
+QStandardItemModel *MusicSearcher::model() const
+{
+    return _model.get();
+}
+
+QStandardItem *MusicSearcher::item(const QModelIndex &index) const
+{
+    return _model->itemFromIndex(index);
+}
+
+NetEaseMusicSearcher::NetEaseMusicSearcher(QObject *parent) : MusicSearcher(parent)
 {
     id_manager = new QNetworkAccessManager(this);
     url_manager = new QNetworkAccessManager(this);

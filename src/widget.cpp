@@ -32,10 +32,21 @@ Widget::Widget(QWidget *parent) : QWidget(parent), ui(new Ui::Widget)
     for (auto child : this->findChildren<QWidget*>()) {
         child->installEventFilter(this);
     }
+    for (auto line_edit : this->findChildren<LineEditWidget*>()) {
+        line_edit->removeEventFilter(this);
+        for (auto child : line_edit->findChildren<QWidget*>())
+        { child->removeEventFilter(this); }
+    }
 
     connect(timer, &QTimer::timeout, this, &Widget::hide_controls);
     connect(ui->aspectEdit->lineEdit(), &QLineEdit::textChanged, this, &Widget::set_aspect_ratio);
     connect(ui->aspectEdit->pushButton(), &QPushButton::clicked, this, [p = ui->aspectEdit->lineEdit()](){ p->setText("00:00"); });
+    connect(ui->rateEdit->lineEdit(), &QLineEdit::textChanged, media_player, [this](const QString &rate) {
+        if (rate.toFloat() > 4) { ui->rateEdit->lineEdit()->setText("4.0"); }
+        else if (rate.toFloat() < 0.3) { ui->rateEdit->lineEdit()->setText("0.3"); }
+        else { media_player->set_rate(rate.toFloat()); }
+    });
+    connect(ui->rateEdit->pushButton(), &QPushButton::clicked, this, [p = ui->rateEdit->lineEdit()](){ p->setText("1.0"); });
     connect(ui->urlEdit->pushButton(), &QPushButton::clicked, this, [this]() { play(ui->urlEdit->lineEdit()->text()); });
     connect(ui->playBtn, &QPushButton::clicked, this, &Widget::do_playBtn_clicked);
     connect(ui->popSlider, &QPushButton::clicked, this, &Widget::do_popSlider_clicked);
@@ -153,6 +164,13 @@ void Widget::init_ui()
     ui->aspectEdit->pushButton()->setIcon(QIcon(IconPath::flash));
     ui->aspectEdit->setTipLabelColor(QColor("#707070"));
 
+    ui->rateEdit->tipLabel()->setText("play rate");
+    ui->rateEdit->lineEdit()->setInputMask("9.0;_");
+    ui->rateEdit->lineEdit()->setAlignment(Qt::AlignCenter);
+    ui->rateEdit->lineEdit()->setText("1.0");
+    ui->rateEdit->pushButton()->setIcon(QIcon(IconPath::flash));
+    ui->rateEdit->setTipLabelColor(QColor("#707070"));
+    
     ui->tabWidget->setCurrentWidget(ui->playlistTab);
 }
 
@@ -257,21 +275,11 @@ bool Widget::eventFilter(QObject *obj, QEvent *event)
             this->mouseMoveEvent(static_cast<QMouseEvent*>(event));
         } break;
         case QEvent::KeyPress: {
-            if (obj == ui->aspectEdit or
-                obj == ui->aspectEdit->lineEdit() or
-                obj == ui->searchEdit or
-                obj == ui->searchEdit->lineEdit() or
-                obj == ui->urlEdit or
-                obj == ui->urlEdit->lineEdit() or
-                obj == ui->TVsearchEdit or
-                obj == ui->TVsearchEdit->lineEdit()
-                ) { break; }
             this->keyPressEvent(static_cast<QKeyEvent*>(event));
             return true;
         } break;
     }
-    if (obj != this) { return obj->eventFilter(obj, event); }
-    return QWidget::eventFilter(obj, event);
+    return QObject::eventFilter(obj, event);
 }
 
 void Widget::resizeEvent(QResizeEvent *event)
@@ -305,8 +313,7 @@ void Widget::keyPressEvent(QKeyEvent * event)
 
 void Widget::wheelEvent(QWheelEvent *event)
 {
-    // event->angleDelta().y();
-    ui->popSlider->slider()->setValue(ui->popSlider->slider()->value() + event->angleDelta().y() / 120);
+    ui->popSlider->slider()->setValue(ui->popSlider->slider()->value() + event->angleDelta().y() / 60);
     QWidget::wheelEvent(event);
 }
 

@@ -56,7 +56,7 @@ private:
     Ui::Widget *ui;
     QTimer *timer;
     LMediaPlayer *media_player;
-    MediaSearcher *netease_music_searcher, *kugou_music_searcher;
+    MusicSearcher *netease_music_searcher, *kugou_music_searcher;
     LibvioSearcher *libvio_searcher;
     PlaylistDatabase *playlist_database;
     FileDownloader *file_downloader;

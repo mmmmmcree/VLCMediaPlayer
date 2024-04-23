@@ -4,13 +4,36 @@
 #include <QObject>
 #include <QNetworkAccessManager>
 #include <QNetworkRequest>
-#include "MediaSearcher.h"
+#include <QStandardItemModel>
+#include <QStandardItem>
+#include <QModelIndex>
+#include <memory>
 
-struct MusicInfo;
+class MusicSearcher : public QObject
+{
+public:
+    MusicSearcher(QObject *parent = nullptr);
+    virtual ~MusicSearcher() = default;
+    virtual void search(const QString &keyword) = 0;
+    QStandardItemModel *model() const;
+    QStandardItem *item(const QModelIndex& index) const;
+private:
+    inline static std::unique_ptr<QStandardItemModel> _model;
+};
 
-class NetEaseMusicSearcher : public MediaSearcher
+class NetEaseMusicSearcher : public MusicSearcher
 {
     Q_OBJECT
+    struct MusicInfo
+    {
+        friend class NetEaseMusicSearcher;
+        MusicInfo() = default;
+        MusicInfo(int i, const QString &mn, const QString &sn, const QString &mu = "")
+            : id(i), music_name(mn), singer_name(sn), music_url(mu) { }
+    private:
+        int id;
+        QString music_name, singer_name, music_url;
+    };
 public:
     NetEaseMusicSearcher(QObject *parent = nullptr);
     void search(const QString &keyword) override;
@@ -27,7 +50,7 @@ private:
     static constexpr auto  api_url = "https://dataiqs.com/api/netease/music/";
 };
 
-class KugouMusicSearcher : public MediaSearcher
+class KugouMusicSearcher : public MusicSearcher
 {
     Q_OBJECT
 public:
@@ -41,15 +64,6 @@ private:
     static constexpr auto  api_url = "https://dataiqs.com/api/kgmusic/";
 };
 
-struct MusicInfo
-{
-    friend class NetEaseMusicSearcher;
-    MusicInfo() = default;
-    MusicInfo(int i, const QString &mn, const QString &sn, const QString &mu = "")
-        : id(i), music_name(mn), singer_name(sn), music_url(mu) { }
-private:
-    int id;
-    QString music_name, singer_name, music_url;
-};
+
 
 #endif // MUSICSEARCHER_H
